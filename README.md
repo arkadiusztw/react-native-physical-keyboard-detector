@@ -1,6 +1,6 @@
 # React Native Physical Keyboard
 
-[![npm version](https://badge.fury.io/js/react-native-physical-keyboard-detector.svg)](https://badge.fury.io/js/react-native-physical-keyboard-detector)[![CI](https://github.com/arkadiusztw/react-native-physical-keyboard-detector/workflows/Native%20Code%20Compilation%20Tests/badge.svg)](https://github.com/arkadiusztw/react-native-physical-keyboard-detector/actions)
+[![npm version](https://badge.fury.io/js/react-native-physical-keyboard-detector.svg)](https://badge.fury.io/js/react-native-physical-keyboard-detector)[![CI](https://github.com/arkadiusztw/react-native-physical-keyboard-detector/workflows/CI/badge.svg)](https://github.com/arkadiusztw/react-native-physical-keyboard-detector/actions)
 
 **Cross-platform React Native + Expo module for detecting and monitoring physical keyboards on mobile devices.**
 
