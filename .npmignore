@@ -1,0 +1,28 @@
+# Development files
+*.test.*
+**/__tests__/**
+**/*.test.*
+*.log
+.DS_Store
+tsconfig.json
+.gitignore
+.github/
+patches/
+example/
+docs/
+
+# Keep only README.md
+*.md
+!README.md
+
+# Build artifacts
+src/
+node_modules/
+.npm/
+*.tgz
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo

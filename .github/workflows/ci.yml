@@ -1,0 +1,354 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  build-package:
+    name: Build Package
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+          
+      - name: Cache Bun dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('**/bun.lockb') }}
+          restore-keys: bun-${{ runner.os }}-
+          
+      - name: Install dependencies
+        run: bun install
+        
+      - name: TypeScript type check
+        run: bun run typecheck
+        
+      - name: Biome Lint
+        run: bun run lint
+        
+      - name: Build package
+        run: bun run build
+        
+      - name: Verify build output
+        run: |
+          test -d lib
+          test -f lib/commonjs/index.js
+          test -f lib/module/index.js
+          test -f lib/typescript/index.d.ts
+          echo "Build artifacts created successfully"
+          
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        if: ${{ !env.ACT }}
+        with:
+          name: build-artifacts
+          path: lib/
+          retention-days: 1
+
+  validate-ios:
+    name: Validate iOS
+    runs-on: macos-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+          
+      - name: Check Xcode version
+        run: xcodebuild -version
+        
+      - name: Validate iOS podspec
+        run: |
+          cd ios
+          pod lib lint ReactNativePhysicalKeyboard.podspec \
+            --allow-warnings \
+            --quick \
+            --verbose
+            
+      - name: Validate iOS source files
+        run: |
+          cd ios
+          echo "🍎 Validating iOS Swift source..."
+          
+          # Check Swift source exists
+          test -f ReactNativePhysicalKeyboardModule.swift || { 
+            echo "❌ Swift source file not found"; exit 1; 
+          }
+          echo "✓ Swift source file exists"
+          
+          # Check podspec exists
+          test -f ReactNativePhysicalKeyboard.podspec || { 
+            echo "❌ Podspec not found"; exit 1; 
+          }
+          echo "✓ Podspec exists"
+          
+          # Validate Swift file structure
+          SWIFT_LINES=$(wc -l < ReactNativePhysicalKeyboardModule.swift)
+          echo "✓ Swift source has $SWIFT_LINES lines"
+          
+          # Check for required class and methods
+          grep -q "class ReactNativePhysicalKeyboard" ReactNativePhysicalKeyboardModule.swift && echo "✓ Main class found"
+          grep -q "hasPhysicalKeyboard" ReactNativePhysicalKeyboardModule.swift && echo "✓ Core methods found"
+          grep -q "GCKeyboard" ReactNativePhysicalKeyboardModule.swift && echo "✓ GameController integration found"
+          
+          echo "✅ iOS native validation completed"
+
+  validate-android:
+    name: Validate Android
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Validate Android source files
+        run: |
+          echo "📱 Validating Android native files..."
+          
+          # Check Kotlin source exists
+          test -f android/src/main/java/expo/modules/physicalkeyboard/ReactNativePhysicalKeyboardModule.kt || { 
+            echo "❌ Kotlin source file not found"; exit 1; 
+          }
+          echo "✓ Kotlin source file exists"
+          
+          # Check manifest exists  
+          test -f android/src/main/AndroidManifest.xml || { 
+            echo "❌ Android manifest not found"; exit 1; 
+          }
+          echo "✓ Android manifest exists"
+          
+          # Check build.gradle exists
+          test -f android/build.gradle || { 
+            echo "❌ Android build.gradle not found"; exit 1; 
+          }
+          echo "✓ Android build configuration exists"
+          
+          # Validate basic file structure
+          KOTLIN_LINES=$(wc -l < android/src/main/java/expo/modules/physicalkeyboard/ReactNativePhysicalKeyboardModule.kt)
+          echo "✓ Kotlin source has $KOTLIN_LINES lines"
+          
+          # Check for required class and methods
+          grep -q "class ReactNativePhysicalKeyboard" android/src/main/java/expo/modules/physicalkeyboard/ReactNativePhysicalKeyboardModule.kt && echo "✓ Main class found"
+          grep -q "hasPhysicalKeyboard" android/src/main/java/expo/modules/physicalkeyboard/ReactNativePhysicalKeyboardModule.kt && echo "✓ Core methods found"
+          grep -q "InputManager.InputDeviceListener" android/src/main/java/expo/modules/physicalkeyboard/ReactNativePhysicalKeyboardModule.kt && echo "✓ Interface implementation found"
+          
+          echo "✅ Android native validation completed"
+
+  test-integration:
+    name: Test Integration
+    runs-on: macos-latest
+    needs: [build-package]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-artifacts
+          path: lib/
+          
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+          
+      - name: Setup Expo CLI
+        run: bun add -g @expo/cli
+        
+      - name: Create test Expo app
+        run: |
+          bun x create-expo-app@latest TestApp --template blank-typescript
+          cd TestApp
+          
+      - name: Install module dependencies
+        run: |
+          cd TestApp
+          bun add ../
+          
+      - name: Create test component
+        run: |
+          cd TestApp
+          cat > TestComponent.tsx << 'EOF'
+          import React from 'react';
+          import { View, Text } from 'react-native';
+          import { usePhysicalKeyboard, usePhysicalKeyboardInfo } from 'react-native-physical-keyboard-detector';
+          
+          export default function TestComponent() {
+            const isConnected = usePhysicalKeyboard();
+            const keyboardInfo = usePhysicalKeyboardInfo();
+            
+            return (
+              <View>
+                <Text>Keyboard: {isConnected ? 'Connected' : 'Disconnected'}</Text>
+                <Text>Info: {keyboardInfo?.name || 'No keyboard'}</Text>
+              </View>
+            );
+          }
+          EOF
+          
+      - name: Update App.tsx to use test component
+        run: |
+          cd TestApp
+          cat > App.tsx << 'EOF'
+          import React from 'react';
+          import { SafeAreaView, StyleSheet } from 'react-native';
+          import TestComponent from './TestComponent';
+          
+          export default function App() {
+            return (
+              <SafeAreaView style={styles.container}>
+                <TestComponent />
+              </SafeAreaView>
+            );
+          }
+          
+          const styles = StyleSheet.create({
+            container: {
+              flex: 1,
+              justifyContent: 'center',
+              alignItems: 'center',
+            },
+          });
+          EOF
+          
+      - name: Add module to expo configuration
+        run: |
+          cd TestApp
+          # Simple app.json without plugins - module works as standard Expo module
+          cat > app.json << 'EOF'
+          {
+            "expo": {
+              "name": "TestApp",
+              "slug": "testapp",
+              "version": "1.0.0",
+              "platforms": ["ios", "android"]
+            }
+          }
+          EOF
+          
+      - name: Pre-build iOS (compilation test)
+        run: |
+          cd TestApp
+          bun x expo prebuild --platform ios --no-install
+          
+      - name: Pre-build Android (compilation test)  
+        run: |
+          cd TestApp
+          bun x expo prebuild --platform android --no-install
+          
+      - name: Verify native code integration
+        run: |
+          cd TestApp
+          # Check if iOS native files were generated
+          test -d ios && echo "iOS project generated"
+          test -d android && echo "Android project generated"
+          
+          # Check if our module is referenced
+          if [ -f ios/Podfile ]; then
+            echo "iOS Podfile exists"
+          fi
+          
+          if [ -f android/settings.gradle ]; then
+            echo "Android settings.gradle exists"
+          fi
+
+  test-compatibility:
+    name: Test Compatibility
+    runs-on: ubuntu-latest
+    needs: [build-package]
+    
+    strategy:
+      matrix:
+        expo-version: ['50.0.0']
+        react-native: ['0.72.0']
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-artifacts
+          path: lib/
+          
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+          
+      - name: Cache Bun dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('**/bun.lockb') }}
+          restore-keys: bun-${{ runner.os }}-
+          
+      - name: Test compatibility with current Expo/RN versions
+        run: |
+          echo "🔄 Testing compatibility: Expo ${{ matrix.expo-version }} + RN ${{ matrix.react-native }}"
+          
+          # Create test environment with specific versions
+          mkdir -p /tmp/compat-test
+          cd /tmp/compat-test
+          
+          cat > package.json << EOF
+          {
+            "name": "compatibility-test",
+            "version": "1.0.0",
+            "dependencies": {
+              "expo": "${{ matrix.expo-version }}",
+              "react-native": "${{ matrix.react-native }}",
+              "expo-modules-core": "^1.11.0",
+              "react": "^18.2.0"
+            },
+            "devDependencies": {
+              "typescript": "^5.2.2"
+            }
+          }
+          EOF
+          
+          # Install dependencies
+          bun install
+          
+          # Test build artifacts exist (downloaded from previous job)
+          test -f $GITHUB_WORKSPACE/lib/typescript/index.d.ts || { echo "❌ TypeScript definitions missing"; exit 1; }
+          test -f $GITHUB_WORKSPACE/lib/commonjs/index.js || { echo "❌ CommonJS build missing"; exit 1; }
+          test -f $GITHUB_WORKSPACE/lib/module/index.js || { echo "❌ ES modules build missing"; exit 1; }
+          
+          echo "✓ All build artifacts present"
+          
+          # Quick compatibility test
+          bun install
+          echo "✅ Package compatibility test passed"

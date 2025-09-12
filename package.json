@@ -1,0 +1,71 @@
+{
+	"name": "react-native-physical-keyboard-detector",
+	"version": "1.0.0",
+	"description": "Cross-platform Expo module that detects physical keyboard connections and provides detailed keyboard information on iOS and Android devices",
+	"main": "lib/commonjs/index.js",
+	"module": "lib/module/index.js",
+	"types": "lib/typescript/index.d.ts",
+	"files": [
+		"lib",
+		"ios",
+		"android",
+		"expo-module.config.json",
+		"README.md"
+	],
+	"scripts": {
+		"build": "bob build",
+		"prepare": "bob build",
+		"lint": "biome check src/",
+		"typecheck": "tsc --noEmit"
+	},
+	"keywords": [
+		"react-native",
+		"expo",
+		"keyboard",
+		"physical-keyboard",
+		"keyboard-detector",
+		"detection",
+		"ios",
+		"android",
+		"input",
+		"hardware"
+	],
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/arkadiusztw/react-native-physical-keyboard-detector.git"
+	},
+	"author": "arkadiusztw",
+	"license": "MIT",
+	"bugs": {
+		"url": "https://github.com/arkadiusztw/react-native-physical-keyboard-detector/issues"
+	},
+	"homepage": "https://github.com/arkadiusztw/react-native-physical-keyboard-detector#readme",
+	"peerDependencies": {
+		"expo": ">=50.0.0",
+		"expo-modules-core": ">=1.11.0",
+		"react": ">=18.0.0",
+		"react-native": ">=0.72.0"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^2.2.4",
+		"@types/react": "^18.2.37",
+		"@types/react-native": "^0.72.6",
+		"react-native-builder-bob": "^0.23.2",
+		"typescript": "^5.2.2"
+	},
+	"react-native-builder-bob": {
+		"source": "src",
+		"output": "lib",
+		"targets": [
+			"commonjs",
+			"module",
+			"typescript"
+		]
+	},
+	"expo": {
+		"platforms": [
+			"ios",
+			"android"
+		]
+	}
+}
