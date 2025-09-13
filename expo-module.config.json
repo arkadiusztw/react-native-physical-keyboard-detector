@@ -4,6 +4,9 @@
 		"modules": ["ReactNativePhysicalKeyboard"]
 	},
 	"android": {
-		"modules": ["expo.modules.physicalkeyboard.ReactNativePhysicalKeyboard"]
+		"modules": [
+			"expo.modules.physicalkeyboard.ReactNativePhysicalKeyboard",
+			"expo.modules.physicalkeyboard.ReactNativePhysicalKeyboardViewModule"
+		]
 	}
 }

@@ -1,3 +1,2 @@
-export * from "./hooks";
-export * from "./ReactNativePhysicalKeyboard.types";
-export { default } from "./ReactNativePhysicalKeyboardModule";
+export * from "./PhysicalKeyboardProvider";
+export * from "./types";

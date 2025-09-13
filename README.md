@@ -1,189 +1,172 @@
 # React Native Physical Keyboard
 
-[![npm version](https://badge.fury.io/js/react-native-physical-keyboard-detector.svg)](https://badge.fury.io/js/react-native-physical-keyboard-detector)[![CI](https://github.com/arkadiusztw/react-native-physical-keyboard-detector/workflows/CI/badge.svg)](https://github.com/arkadiusztw/react-native-physical-keyboard-detector/actions)
+[![npm](https://img.shields.io/npm/v/react-native-physical-keyboard-detector.svg?style=flat-square&label=npm&labelColor=gray&color=blue)](https://www.npmjs.com/package/react-native-physical-keyboard-detector) [![Downloads](https://img.shields.io/npm/dm/react-native-physical-keyboard-detector.svg?style=flat-square&labelColor=gray&color=blue&label=downloads/month)](https://www.npmjs.com/package/react-native-physical-keyboard-detector) [![CI](https://img.shields.io/github/actions/workflow/status/arkadiusztw/react-native-physical-keyboard-detector/ci.yml?style=flat-square&labelColor=gray&color=blue&label=CI)](https://github.com/arkadiusztw/react-native-physical-keyboard-detector/actions)
 
-**Cross-platform React Native + Expo module for detecting and monitoring physical keyboards on mobile devices.**
+Cross-platform React Native + Expo module for detecting physical keyboards on mobile devices. This library can be useful for detecting external keyboards when implementing accessibility features.
 
-## 🚀 Features
 
-- **🎯 Real-time Detection** - Monitor keyboard connection/disconnection events
-- **📱 Cross-platform** - Native support for iOS and Android
-- **📊  Metadata** - Get detailed keyboard information (vendor, type, capabilities)
-- **🪝 React Hooks** - Easy-to-use hooks with TypeScript support
-- **⚡ High Performance** - Native implementation with minimal overhead
-- **🔒 Type-safe** - Full TypeScript definitions included
 
-## ⚠️ Important Note
+## Features
 
-**This package requires rebuilding your Expo app** as it contains native code.
+### 🎯 Core Functionality
+- **🔌 Real-time Detection** - Detect when physical keyboards are connected or disconnected
+- **⌨️ Key Event Monitoring** - Listen to key press and release events
+- **📊 Hardware Information** - Get keyboard details like vendor, model, and type
 
-## 📦 Installation
+### 🚀 Developer Experience  
+- **<img src="https://upload.wikimedia.org/wikipedia/commons/4/4c/Typescript_logo_2020.svg" width="16" height="16" alt="TypeScript"> TypeScript Support** - Full type definitions included
+- **🎣 React Hooks API** - Simple hooks for easy integration
+- **⚡ Zero Configuration** - Works without additional setup
+- **🔄 Reactive State** - Components update when keyboard state changes
+- **<img src="https://avatars.githubusercontent.com/u/12504344" width="16" height="16" alt="Expo"> Expo Compatible** - Supports managed workflow (SDK 50+)
+- **🍎🤖 Cross-Platform** - iOS and Android support
 
-### Package Managers
+### 🎨 Additional Features
+- **📈 Connection History** - Track connection timestamps
+- **🏷️ Device Classification** - Identify keyboard types and vendors
+- **⚡ Performance** - Lightweight native implementation
+- **🛡️ Error Handling** - Handles edge cases and platform differences
+
+
+
+## Installation
+
 ```bash
-# npm
 npm install react-native-physical-keyboard-detector
+```
 
-# yarn
-yarn add react-native-physical-keyboard-detector
-
-# bun
+```bash
 bun add react-native-physical-keyboard-detector
 ```
 
-## 🎯 Quick Start
+**⚠️ Requires native rebuild** - run `expo prebuild` after installation.
 
-### Basic Usage
+**📱 Testing Note** - For best results, test on physical devices. iOS Simulator may not properly detect key press events, though keyboard connection detection should work correctly.
+
+## Usage
+
+### Basic Setup
+
 ```typescript
-import { usePhysicalKeyboard } from 'react-native-physical-keyboard-detector';
+import { PhysicalKeyboardProvider } from 'react-native-physical-keyboard-detector';
 
-export default function MyApp() {
-  const isKeyboardConnected = usePhysicalKeyboard();
+export default function App() {
+  return (
+    <PhysicalKeyboardProvider>
+      <YourApp />
+    </PhysicalKeyboardProvider>
+  );
+}
+```
+
+### Detect Connection
+
+```typescript
+function MyComponent() {
+  const isConnected = usePhysicalKeyboardConnected();
+  
+  return (
+    <Text>
+      Keyboard: {isConnected ? 'Connected' : 'Not Connected'}
+    </Text>
+  );
+}
+```
+
+### Get Keyboard Details
+
+```typescript
+function KeyboardInfo() {
+  const keyboard = usePhysicalKeyboardDetails();
+  
+  if (!keyboard) return <Text>No external hardware keyboard</Text>;
   
   return (
     <View>
-      <Text>
-        External Keyboard: {isKeyboardConnected ? '✅ Connected' : '❌ Not Connected'}
-      </Text>
-      {isKeyboardConnected && (
-        <Text>Keyboard shortcuts are now available!</Text>
-      )}
+      <Text>Name: {keyboard.name}</Text>
+      <Text>Connected: {new Date(keyboard.connectedAt).toLocaleString()}</Text>
+      {/* iOS specific */}
+      {keyboard.vendorName && <Text>Vendor: {keyboard.vendorName}</Text>}
+      {/* Android specific */}
+      {keyboard.keyboardType && <Text>Type: {keyboard.keyboardTypeName}</Text>}
     </View>
   );
 }
 ```
 
-### Advanced Usage with Details
-```typescript
-import { usePhysicalKeyboardInfo } from 'react-native-physical-keyboard-detector';
+### Listen to Key Events
 
-export default function KeyboardStatus() {
-  const keyboardInfo = usePhysicalKeyboardInfo();
+```typescript
+function KeyListener() {
+  const keyEvent = usePhysicalKeyboardEvents();
   
-  if (!keyboardInfo) {
-    return <Text>No physical keyboard detected</Text>;
-  }
+  if (!keyEvent) return null;
   
   return (
-    <View>
-      <Text>📱 Keyboard: {keyboardInfo.name}</Text>
-      <Text>🕒 Connected: {new Date(keyboardInfo.connectedAt).toLocaleString()}</Text>
-      
-      {/* iOS-specific information */}
-      {'vendorName' in keyboardInfo && (
-        <View>
-          <Text>🏢 Vendor: {keyboardInfo.vendorName}</Text>
-          <Text>📂 Category: {keyboardInfo.productCategory}</Text>
-          <Text>🔘 Buttons: {keyboardInfo.buttonCount}</Text>
-        </View>
-      )}
-      
-      {/* Android-specific information */}
-      {'vendorId' in keyboardInfo && (
-        <View>
-          <Text>🆔 Device ID: {keyboardInfo.id}</Text>
-          <Text>🏭 Vendor ID: {keyboardInfo.vendorId}</Text>
-          <Text>📦 Product ID: {keyboardInfo.productId}</Text>
-          <Text>🔌 External: {keyboardInfo.isExternal ? 'Yes' : 'No'}</Text>
-          <Text>⌨️ Type: {keyboardInfo.keyboardTypeName}</Text>
-        </View>
-      )}
-    </View>
+    <Text>
+      Last key: {keyEvent.keyCode} ({keyEvent.action})
+    </Text>
   );
 }
 ```
 
-## 📚 API Reference
+## API
 
-### React Hooks
+### Provider
 
-#### `usePhysicalKeyboard(): boolean`
-Returns the current connection status of physical keyboards.
+- `<PhysicalKeyboardProvider>` - Wrap your app to enable keyboard detection
 
-**Returns:** `boolean` - `true` if any physical keyboard is connected
+### Hooks
 
-```typescript
-const isConnected = usePhysicalKeyboard();
-```
+- `usePhysicalKeyboardConnected()` - Returns `boolean`
+- `usePhysicalKeyboardDetails()` - Returns keyboard info or `null`
+- `usePhysicalKeyboardEvents()` - Returns last key event or `null`
 
-#### `usePhysicalKeyboardInfo(): ExtendedPhysicalKeyboardInfo | null`
-Returns detailed information about the connected keyboard.
+**Note:** All hooks must be used within `PhysicalKeyboardProvider`
 
-**Returns:** `ExtendedPhysicalKeyboardInfo | null` - Keyboard details or `null` if none connected
+### Types
 
 ```typescript
-const keyboardInfo = usePhysicalKeyboardInfo();
-```
-
-### Native Module Methods
-
-#### `hasPhysicalKeyboard(): boolean`
-Synchronously check if a physical keyboard is connected.
-
-#### `getPhysicalKeyboardDetails(): ExtendedPhysicalKeyboardInfo | null`
-Get detailed keyboard information synchronously.
-
-#### `addListener(eventName: string, callback: Function): EventSubscription`
-Listen to keyboard events.
-
-**Events:**
-- `'onKeyboardStatusChanged'` - Connection status changed
-- `'onKeyboardInfoChanged'` - Keyboard details updated
-
-```typescript
-import ReactNativePhysicalKeyboard from 'react-native-physical-keyboard-detector';
-
-// Manual event listening
-const subscription = ReactNativePhysicalKeyboard.addListener(
-  'onKeyboardStatusChanged',
-  (event) => {
-    console.log('Keyboard status changed:', event.isConnected);
-  }
-);
-
-// Don't forget to cleanup
-subscription.remove();
-```
-
-## 🏗️ TypeScript Definitions
-
-```typescript
-
-type BasePhysicalKeyboardInfo = {
+// iOS Keyboard Info
+interface IOSPhysicalKeyboardInfo {
   name: string;
   connectedAt: number;
-};
-
-// iOS-specific keyboard info
-type IOSPhysicalKeyboardInfo = BasePhysicalKeyboardInfo & {
   vendorName?: string;
   productCategory?: string;
   availableButtonKeys?: string[];
   buttonCount?: number;
-};
+}
 
-// Android-specific keyboard info
-type AndroidPhysicalKeyboardInfo = BasePhysicalKeyboardInfo & {
+// Android Keyboard Info
+interface AndroidPhysicalKeyboardInfo {
+  name: string;
+  connectedAt: number;
   id?: number;
   vendorId?: number;
   productId?: number;
-  controllerNumber?: number;
-  descriptor?: string;
-  isVirtual?: boolean;
-  isExternal?: boolean;
-  sources?: number;
   keyboardType?: number;
   keyboardTypeName?: string;
-};
+  isExternal?: boolean;
+}
 
-
-type ExtendedPhysicalKeyboardInfo = IOSPhysicalKeyboardInfo | AndroidPhysicalKeyboardInfo;
+// Key Event
+interface KeyPressEventPayload {
+  keyCode: number;
+  timestamp: number;
+  action: 'up' | 'down';
+}
 ```
+
+## Platform Support
+
+- **iOS**: Uses GameController framework
+- **Android**: Uses InputDevice API
+- **Expo**: SDK 50+
 
 ## 🤝 Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
-## 🙏 Acknowledgments
+## License
 
-Built with Expo Modules API for seamless React Native integration.
+MIT

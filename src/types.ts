@@ -1,5 +1,3 @@
-import type { EventSubscription } from "expo-modules-core";
-
 /**
  * Common properties available on both iOS and Android platforms
  */
@@ -52,60 +50,21 @@ export type AndroidPhysicalKeyboardInfo = BasePhysicalKeyboardInfo & {
 	keyboardTypeName?: string;
 };
 
+/**
+ * Union type representing keyboard information from either iOS or Android
+ */
 export type ExtendedPhysicalKeyboardInfo =
 	| IOSPhysicalKeyboardInfo
 	| AndroidPhysicalKeyboardInfo;
 
-export type KeyboardStatusEventPayload = {
-	isConnected: boolean;
-};
-
-export type KeyboardInfoChangedEventPayload = {
-	keyboard: ExtendedPhysicalKeyboardInfo | null;
-};
-
 /**
- * Native module interface for detecting and monitoring physical keyboards
- * Provides cross-platform access to physical keyboard information on iOS and Android
+ * Key press event payload containing information about a physical key press
  */
-export type ReactNativePhysicalKeyboardModule = {
-	/**
-	 * Check if any physical keyboard is currently connected
-	 * @returns true if at least one physical keyboard is detected, false otherwise
-	 */
-	hasPhysicalKeyboard: () => boolean;
-
-	/**
-	 * Get detailed information about the currently connected physical keyboard
-	 * @returns Keyboard info object with platform-specific properties, or null if no keyboard
-	 */
-	getPhysicalKeyboardDetails: () => ExtendedPhysicalKeyboardInfo | null;
-
-	/**
-	 * Add event listeners for keyboard connection changes and info updates
-	 * Supports two event types with different payloads
-	 */
-	addListener: {
-		/**
-		 * Listen for keyboard connection/disconnection events
-		 * @param eventName - Event type for connection status changes
-		 * @param listener - Callback receiving boolean connection status
-		 * @returns EventSubscription that can be used to unsubscribe
-		 */
-		(
-			eventName: "onKeyboardStatusChanged",
-			listener: (event: KeyboardStatusEventPayload) => void,
-		): EventSubscription;
-
-		/**
-		 * Listen for keyboard information changes
-		 * @param eventName - Event type for keyboard info changes
-		 * @param listener - Callback receiving full keyboard info or null
-		 * @returns EventSubscription that can be used to unsubscribe
-		 */
-		(
-			eventName: "onKeyboardInfoChanged",
-			listener: (event: KeyboardInfoChangedEventPayload) => void,
-		): EventSubscription;
-	};
-};
+export interface KeyPressEventPayload {
+	/** The key code of the pressed key */
+	keyCode: number;
+	/** Timestamp when the key event occurred (milliseconds since epoch) */
+	timestamp?: number;
+	/** Whether the key was pressed down or released */
+	action?: "up" | "down";
+}

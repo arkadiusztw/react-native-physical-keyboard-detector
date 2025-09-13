@@ -3,6 +3,7 @@ package expo.modules.physicalkeyboard
 import android.content.Context
 import android.hardware.input.InputManager
 import android.os.Bundle
+import android.util.Log
 import android.view.InputDevice
 import androidx.core.os.bundleOf
 import expo.modules.kotlin.modules.Module
@@ -10,22 +11,30 @@ import expo.modules.kotlin.modules.ModuleDefinition
 
 class ReactNativePhysicalKeyboard : Module(), InputManager.InputDeviceListener {
 
+  private companion object {
+    private const val TAG = "PhysicalKeyboard"
+  }
+
   private val context: Context
     get() = appContext.reactContext ?: throw Exception("React context not available")
 
   private val inputManager: InputManager
     get() = context.getSystemService(Context.INPUT_SERVICE) as InputManager
 
-  private var isListening = false
+  @Volatile private var isListening = false
+  private var connectionTime: Long? = null
 
   override fun definition() = ModuleDefinition {
     Name("ReactNativePhysicalKeyboard")
 
-    Events("onKeyboardStatusChanged", "onKeyboardInfoChanged")
+    Events("onKeyboardStatusChanged", "onKeyboardInfoChanged", "onKeyPress")
 
-    OnCreate { startInputDeviceListening() }
+    OnStartObserving {
+      startInputDeviceListening()
+      checkInitialKeyboardState()
+    }
 
-    OnDestroy { stopInputDeviceListening() }
+    OnStopObserving { stopInputDeviceListening() }
 
     Function("hasPhysicalKeyboard") {
       return@Function hasPhysicalKeyboard()
@@ -34,52 +43,82 @@ class ReactNativePhysicalKeyboard : Module(), InputManager.InputDeviceListener {
     Function("getPhysicalKeyboardDetails") {
       return@Function getPhysicalKeyboardDetails()
     }
+
   }
 
   private fun startInputDeviceListening() {
-    if (!isListening) {
-      inputManager.registerInputDeviceListener(this, null)
-      isListening = true
+    synchronized(this) {
+      if (!isListening) {
+        try {
+          inputManager.registerInputDeviceListener(this, null)
+          isListening = true
+        } catch (e: Exception) {
+          Log.w(TAG, "Error starting input device listening", e)
+        }
+      }
     }
   }
 
   private fun stopInputDeviceListening() {
-    if (isListening) {
-      inputManager.unregisterInputDeviceListener(this)
-      isListening = false
+    synchronized(this) {
+      if (isListening) {
+        try {
+          inputManager.unregisterInputDeviceListener(this)
+          isListening = false
+        } catch (e: Exception) {
+          Log.w(TAG, "Error stopping input device listening", e)
+        }
+      }
     }
   }
 
   override fun onInputDeviceAdded(deviceId: Int) {
-    val device = InputDevice.getDevice(deviceId)
-    if (device != null && isPhysicalKeyboard(device)) {
-      sendEvent("onKeyboardStatusChanged", bundleOf("isConnected" to true))
-      getPhysicalKeyboardDetails()?.let { details ->
-        sendEvent("onKeyboardInfoChanged", bundleOf("keyboard" to details))
+    try {
+      val device = InputDevice.getDevice(deviceId)
+      if (device != null && isPhysicalKeyboard(device)) {
+        connectionTime = System.currentTimeMillis()
+        sendEvent("onKeyboardStatusChanged", bundleOf("isConnected" to true))
+        getPhysicalKeyboardDetails()?.let { details ->
+          sendEvent("onKeyboardInfoChanged", bundleOf("keyboard" to details))
+        }
       }
+    } catch (e: Exception) {
+      Log.e(TAG, "Error handling input device added", e)
     }
   }
 
   override fun onInputDeviceRemoved(deviceId: Int) {
+    try {
+      val hasKeyboards = hasPhysicalKeyboard()
 
-    val hasKeyboards = hasPhysicalKeyboard()
-    sendEvent("onKeyboardStatusChanged", bundleOf("isConnected" to hasKeyboards))
-
-    if (hasKeyboards) {
-      getPhysicalKeyboardDetails()?.let { details ->
-        sendEvent("onKeyboardInfoChanged", bundleOf("keyboard" to details))
+      if (!hasKeyboards) {
+        connectionTime = null
       }
-    } else {
-      sendEvent("onKeyboardInfoChanged", bundleOf("keyboard" to null))
+
+      sendEvent("onKeyboardStatusChanged", bundleOf("isConnected" to hasKeyboards))
+
+      if (hasKeyboards) {
+        getPhysicalKeyboardDetails()?.let { details ->
+          sendEvent("onKeyboardInfoChanged", bundleOf("keyboard" to details))
+        }
+      } else {
+        sendEvent("onKeyboardInfoChanged", bundleOf("keyboard" to null))
+      }
+    } catch (e: Exception) {
+      Log.e(TAG, "Error handling input device removed", e)
     }
   }
 
   override fun onInputDeviceChanged(deviceId: Int) {
-    val device = InputDevice.getDevice(deviceId)
-    if (device != null && isPhysicalKeyboard(device)) {
-      getPhysicalKeyboardDetails()?.let { details ->
-        sendEvent("onKeyboardInfoChanged", bundleOf("keyboard" to details))
+    try {
+      val device = InputDevice.getDevice(deviceId)
+      if (device != null && isPhysicalKeyboard(device)) {
+        getPhysicalKeyboardDetails()?.let { details ->
+          sendEvent("onKeyboardInfoChanged", bundleOf("keyboard" to details))
+        }
       }
+    } catch (e: Exception) {
+      Log.e(TAG, "Error handling input device changed", e)
     }
   }
 
@@ -92,10 +131,11 @@ class ReactNativePhysicalKeyboard : Module(), InputManager.InputDeviceListener {
     if (keyboards.isEmpty()) return null
 
     val device = keyboards.first()
+    val connectedAtMs = connectionTime ?: System.currentTimeMillis()
 
     return bundleOf(
             "name" to (device.name ?: "Unknown Keyboard"),
-            "connectedAt" to System.currentTimeMillis(),
+            "connectedAt" to connectedAtMs,
             "id" to device.id,
             "vendorId" to device.vendorId,
             "productId" to device.productId,
@@ -110,16 +150,25 @@ class ReactNativePhysicalKeyboard : Module(), InputManager.InputDeviceListener {
   }
 
   private fun getPhysicalKeyboards(): List<InputDevice> {
-    val keyboards = mutableListOf<InputDevice>()
+    return try {
+      val keyboards = mutableListOf<InputDevice>()
 
-    inputManager.inputDeviceIds.forEach { deviceId ->
-      val device = InputDevice.getDevice(deviceId)
-      if (device != null && isPhysicalKeyboard(device)) {
-        keyboards.add(device)
+      inputManager.inputDeviceIds.forEach { deviceId ->
+        try {
+          val device = InputDevice.getDevice(deviceId)
+          if (device != null && isPhysicalKeyboard(device)) {
+            keyboards.add(device)
+          }
+        } catch (e: Exception) {
+          Log.w(TAG, "Error getting input device $deviceId", e)
+        }
       }
-    }
 
-    return keyboards
+      keyboards
+    } catch (e: Exception) {
+      Log.e(TAG, "Error getting physical keyboards", e)
+      emptyList()
+    }
   }
 
   private fun isPhysicalKeyboard(device: InputDevice): Boolean {
@@ -134,6 +183,21 @@ class ReactNativePhysicalKeyboard : Module(), InputManager.InputDeviceListener {
       InputDevice.KEYBOARD_TYPE_NON_ALPHABETIC -> "NON_ALPHABETIC"
       InputDevice.KEYBOARD_TYPE_NONE -> "NONE"
       else -> "UNKNOWN"
+    }
+  }
+
+  private fun checkInitialKeyboardState() {
+    try {
+      val hasKeyboards = hasPhysicalKeyboard()
+      if (hasKeyboards) {
+        connectionTime = System.currentTimeMillis()
+        sendEvent("onKeyboardStatusChanged", bundleOf("isConnected" to true))
+        getPhysicalKeyboardDetails()?.let { details ->
+          sendEvent("onKeyboardInfoChanged", bundleOf("keyboard" to details))
+        }
+      }
+    } catch (e: Exception) {
+      Log.e(TAG, "Error checking initial keyboard state", e)
     }
   }
 }

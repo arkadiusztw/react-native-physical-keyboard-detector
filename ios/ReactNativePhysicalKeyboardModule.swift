@@ -1,20 +1,25 @@
 import ExpoModulesCore
 import GameController
+import os.log
 
 public class ReactNativePhysicalKeyboard: Module {
   private var keyboardObserver: NSObjectProtocol?
   private var disconnectObserver: NSObjectProtocol?
+  private var connectionTime: TimeInterval?
+  private var keyboard: GCKeyboard?
+  private let logger = Logger(subsystem: "com.ReactNativePhysicalKeyboard", category: "keyboard")
   
   public func definition() -> ModuleDefinition {
     Name("ReactNativePhysicalKeyboard")
     
-    Events("onKeyboardStatusChanged", "onKeyboardInfoChanged")
+    Events("onKeyboardStatusChanged", "onKeyboardInfoChanged", "onKeyPress")
     
-    OnCreate {
+    OnStartObserving {
       self.setupKeyboardObservers()
+      self.checkInitialKeyboardState()
     }
     
-    OnDestroy {
+    OnStopObserving {
       self.removeKeyboardObservers()
     }
     
@@ -32,7 +37,12 @@ public class ReactNativePhysicalKeyboard: Module {
       forName: .GCKeyboardDidConnect,
       object: nil,
       queue: .main
-    ) { _ in
+    ) { notification in
+      if let keyboard = notification.object as? GCKeyboard {
+        self.keyboard = keyboard
+        self.setupKeyInputHandler(for: keyboard)
+      }
+      self.connectionTime = Date().timeIntervalSince1970
       self.sendEvent("onKeyboardStatusChanged", ["isConnected": true])
       if let keyboardDetails = self.getPhysicalKeyboardDetails() {
         self.sendEvent("onKeyboardInfoChanged", ["keyboard": keyboardDetails])
@@ -44,8 +54,10 @@ public class ReactNativePhysicalKeyboard: Module {
       object: nil,
       queue: .main
     ) { _ in
+      self.stopKeyListener()
+      self.connectionTime = nil
       self.sendEvent("onKeyboardStatusChanged", ["isConnected": false])
-      self.sendEvent("onKeyboardInfoChanged", ["keyboard": NSNull()])
+      self.sendEvent("onKeyboardInfoChanged", ["keyboard": nil])
     }
   }
   
@@ -65,10 +77,12 @@ public class ReactNativePhysicalKeyboard: Module {
   private func getPhysicalKeyboardDetails() -> [String: Any]? {
     guard let keyboard = GCKeyboard.coalesced else { return nil }
     
+    let connectedAtMs = Int((connectionTime ?? Date().timeIntervalSince1970) * 1000)
+    
     let details: [String: Any] = [
       "name": getKeyboardName(keyboard),
-      "connectedAt": Int(Date().timeIntervalSince1970 * 1000),
-      "vendorName": keyboard.vendorName ?? NSNull(),
+      "connectedAt": connectedAtMs,
+      "vendorName": keyboard.vendorName,
       "productCategory": keyboard.productCategory,
       "availableButtonKeys": getAvailableButtonKeys(keyboard),
       "buttonCount": getButtonCount(keyboard)
@@ -88,8 +102,53 @@ public class ReactNativePhysicalKeyboard: Module {
   }
   
   private func getButtonCount(_ keyboard: GCKeyboard) -> Int {
-    let physicalInput = keyboard.physicalInputProfile
-    return physicalInput.buttons.count
+    do {
+      let physicalInput = keyboard.physicalInputProfile
+      return physicalInput.buttons.count
+    } catch {
+      logger.error("Error getting button count: \(error)")
+      return 0
+    }
   }
   
+  private func checkInitialKeyboardState() {
+    if GCKeyboard.coalesced != nil {
+      keyboard = GCKeyboard.coalesced
+      connectionTime = Date().timeIntervalSince1970
+      
+      sendEvent("onKeyboardStatusChanged", ["isConnected": true])
+      if let keyboardDetails = getPhysicalKeyboardDetails() {
+        sendEvent("onKeyboardInfoChanged", ["keyboard": keyboardDetails])
+      }
+      if let keyboard = keyboard {
+        setupKeyInputHandler(for: keyboard)
+      }
+    }
+  }
+  
+  private func setupKeyInputHandler(for keyboard: GCKeyboard) {
+    if let input = keyboard.keyboardInput {
+      input.keyChangedHandler = { [weak self] _, key, keyCode, pressed in
+        if pressed {
+          self?.handleKeyEvent(keyCode: keyCode)
+        }
+      }
+    }
+  }
+  
+  private func handleKeyEvent(keyCode: GCKeyCode) {
+    let payload: [String: Any] = [
+      "keyCode": keyCode.rawValue,
+      "timestamp": Date().timeIntervalSince1970 * 1000
+    ]
+    sendEvent("onKeyPress", payload)
+  }
+  
+  private func stopKeyListener() {
+    if let input = keyboard?.keyboardInput {
+      input.keyChangedHandler = nil
+    }
+    keyboard = nil
+  }
+
 }

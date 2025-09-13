@@ -23,6 +23,7 @@ coverage/
 .idea/
 *.swp
 *.swo
+local.properties
 
 # OS files
 .DS_Store
