@@ -1,6 +1,5 @@
 import { requireNativeModule } from "expo-modules-core";
-
-import type { ReactNativePhysicalKeyboardModule } from "./ReactNativePhysicalKeyboard.types";
+import type { ReactNativePhysicalKeyboardModule } from "./internal/types";
 
 const RNPKModule: ReactNativePhysicalKeyboardModule = requireNativeModule(
 	"ReactNativePhysicalKeyboard",
