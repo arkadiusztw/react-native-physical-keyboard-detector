@@ -1,9 +1,15 @@
 {
 	"platforms": ["ios", "android"],
 	"ios": {
-		"modules": ["ReactNativePhysicalKeyboard"]
+		"modules": [
+			"ReactNativePhysicalKeyboard",
+			"ReactNativePhysicalKeyboardViewManager"
+		]
 	},
 	"android": {
-		"modules": ["expo.modules.physicalkeyboard.ReactNativePhysicalKeyboard"]
+		"modules": [
+			"expo.modules.physicalkeyboard.ReactNativePhysicalKeyboard",
+			"expo.modules.physicalkeyboard.ReactNativePhysicalKeyboardViewModule"
+		]
 	}
 }
