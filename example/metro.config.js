@@ -1,0 +1,31 @@
+const { getDefaultConfig } = require('expo/metro-config');
+const path = require('node:path');
+
+const config = getDefaultConfig(__dirname);
+
+config.resolver.blockList = [
+  ...Array.from(config.resolver.blockList ?? []),
+  new RegExp(path.resolve('..', 'node_modules', 'react-native')),
+  new RegExp(`${path.resolve('..', 'node_modules', 'react')}(?!-)`),
+];
+
+config.resolver.extraNodeModules = {
+  react: path.resolve(__dirname, 'node_modules/react'),
+  'react-native': path.resolve(__dirname, 'node_modules/react-native'),
+};
+
+config.resolver.nodeModulesPaths = [
+  path.resolve(__dirname, './node_modules'),
+  path.resolve(__dirname, '../node_modules'),
+];
+
+config.watchFolders = [path.resolve(__dirname, '..')];
+
+config.transformer.getTransformOptions = async () => ({
+  transform: {
+    experimentalImportSupport: false,
+    inlineRequires: true,
+  },
+});
+
+module.exports = config;

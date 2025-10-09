@@ -1,0 +1,10 @@
+{
+	"extends": "expo/tsconfig.base",
+	"compilerOptions": {
+		"strict": true,
+		"paths": {
+			"react-native-physical-keyboard-detector": ["../src/index"],
+			"react-native-physical-keyboard-detector/*": ["../src/*"]
+		}
+	}
+}
