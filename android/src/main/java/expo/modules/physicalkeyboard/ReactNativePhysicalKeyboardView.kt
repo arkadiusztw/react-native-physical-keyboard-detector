@@ -56,5 +56,8 @@ class ReactNativePhysicalKeyboardView(context: Context, appContext: AppContext) 
             !device.isVirtual &&
             device.keyboardType == InputDevice.KEYBOARD_TYPE_ALPHABETIC
   }
-}
 
+  override fun onInterceptTouchEvent(ev: android.view.MotionEvent?): Boolean {
+    return false
+  }
+}

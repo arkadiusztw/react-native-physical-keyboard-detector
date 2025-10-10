@@ -20,21 +20,23 @@ export function PhysicalKeyboardView({
 	onKeyPress,
 	children,
 }: PhysicalKeyboardViewProps) {
+	const handleKeyPress = (event: { nativeEvent: KeyPressEvent }) => {
+		if (onKeyPress && event.nativeEvent) {
+			const nativeEvent = event.nativeEvent;
+			if (typeof nativeEvent.keyCode === "number") {
+				onKeyPress({
+					keyCode: nativeEvent.keyCode,
+					action: nativeEvent.action || "down",
+					timestamp: nativeEvent.timestamp || Date.now(),
+				});
+			}
+		}
+	};
+
 	return (
 		<NativePhysicalKeyboardView
 			style={{ flex: 1 }}
-			onPhysicalKeyPress={(event: { nativeEvent: KeyPressEvent }) => {
-				if (onKeyPress && event.nativeEvent) {
-					const nativeEvent = event.nativeEvent;
-					if (typeof nativeEvent.keyCode === "number") {
-						onKeyPress({
-							keyCode: nativeEvent.keyCode,
-							action: nativeEvent.action || "down",
-							timestamp: nativeEvent.timestamp || Date.now(),
-						});
-					}
-				}
-			}}
+			onPhysicalKeyPress={handleKeyPress}
 		>
 			{children}
 		</NativePhysicalKeyboardView>
